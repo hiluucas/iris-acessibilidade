@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowDown } from 'lucide-react';
 import { Header } from './components/Header';
 import { ScanForm } from './components/ScanForm';
 import { ResultCard } from './components/ResultCard';
@@ -70,72 +70,61 @@ const IrisReimagined = () => {
       setResult(data);
     } catch (err) {
       console.error(err);
-      setError("Não conseguimos acessar esse site. Verifique a URL e tente novamente.");
+      setError("Não foi possível acessar este site. Verifique a URL e tente novamente.");
     } finally {
       setScanning(false);
     }
   };
 
   return (
-    <div className="min-h-screen relative selection:bg-blue-500/30">
+    <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-black transition-colors duration-500">
       
-      {/* Background Grid Pattern (Sutil e Moderno) */}
-      <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]" 
-           style={{ backgroundImage: 'radial-gradient(#a1a1aa 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
-      </div>
+      <Header isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
 
-      {/* Gradiente de Luz (Ambient Glow) */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-blue-500/10 dark:bg-blue-500/5 blur-[120px] rounded-full pointer-events-none z-0" />
-
-      <div className="relative z-10 p-6 md:p-12 max-w-5xl mx-auto">
-        <Header isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
-
-        <main className="flex flex-col items-center justify-center min-h-[60vh] space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-          
-          {/* Hero Section Refinado */}
-          <div className="text-center space-y-6 max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-widest mb-2 border border-blue-100 dark:border-blue-900/50">
-              <Sparkles size={12} />
-              Auditoria WCAG 2.2
-            </div>
-            
-            <h1 className="text-5xl md:text-7xl font-black tracking-tight text-zinc-900 dark:text-white leading-[1.1]">
-              Torne a web <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 animate-gradient">
-                universalmente acessível.
+      <main className="flex-1 w-full max-w-7xl mx-auto px-6 md:px-8 flex flex-col justify-center py-12">
+        
+        {/* Hero Section - Limpo e Tipográfico */}
+        <div className={`transition-all duration-700 ease-in-out ${result ? 'mt-0' : 'mt-12 md:mt-20'}`}>
+          <div className="max-w-4xl mx-auto text-center space-y-8">
+            <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-zinc-900 dark:text-white leading-[0.9]">
+              Torne a web <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-b from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600">
+                acessível.
               </span>
             </h1>
             
-            <p className="text-xl md:text-2xl text-zinc-500 dark:text-zinc-400 font-medium max-w-2xl mx-auto leading-relaxed">
-              Diagnóstico profissional, didático e instantâneo para elevar a qualidade do seu produto digital.
-            </p>
+            {!result && (
+              <p className="text-xl md:text-2xl text-zinc-500 dark:text-zinc-400 font-medium max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+                A ferramenta de referência para auditar, aprender e corrigir interfaces digitais.
+              </p>
+            )}
           </div>
 
-          {/* Componente de Formulário (Elevated) */}
-          <div className="w-full max-w-2xl">
+          {/* Scanner Area */}
+          <div className="mt-12 md:mt-16 max-w-2xl mx-auto w-full relative z-10">
             <ScanForm 
               urlInput={urlInput} 
               setUrlInput={setUrlInput} 
               handleScan={handleScan} 
               scanning={scanning} 
             />
+            
+            {/* Error Feedback */}
+            {error && (
+              <div className="mt-4 p-4 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900 text-red-600 dark:text-red-400 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold animate-in fade-in slide-in-from-top-2">
+                <AlertTriangle size={16} /> 
+                <span>{error}</span>
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* Feedback de Erro */}
-          {error && (
-            <div className="w-full max-w-2xl p-4 bg-red-50/50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center gap-2 backdrop-blur-sm animate-in zoom-in duration-300">
-              <AlertTriangle size={18} /> 
-              <span className="font-medium text-sm">{error}</span>
-            </div>
-          )}
+        {/* Results Area */}
+        <div className="w-full mt-12 md:mt-20 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+          <ResultCard result={result} scanning={scanning} />
+        </div>
 
-          {/* Resultado */}
-          <div className="w-full">
-            <ResultCard result={result} scanning={scanning} />
-          </div>
-
-        </main>
-      </div>
+      </main>
     </div>
   );
 };

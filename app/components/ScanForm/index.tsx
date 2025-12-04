@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, ArrowRight } from 'lucide-react';
+import { Search, ArrowRight, Loader2 } from 'lucide-react';
 
 interface ScanFormProps {
   urlInput: string;
@@ -10,18 +10,16 @@ interface ScanFormProps {
 
 export const ScanForm = ({ urlInput, setUrlInput, handleScan, scanning }: ScanFormProps) => {
   return (
-    <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 p-2 rounded-3xl shadow-2xl transition-all duration-500">
-      <form onSubmit={handleScan} className="flex flex-col md:flex-row gap-2">
+    <div className="relative bg-white dark:bg-zinc-900 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)] border border-zinc-200/50 dark:border-zinc-800 transition-all duration-300 hover:shadow-[0_20px_40px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_20px_40px_rgb(0,0,0,0.6)]">
+      <form onSubmit={handleScan} className="flex flex-col sm:flex-row p-2 gap-2">
         <div className="relative flex-grow group">
           
-          {/* --- CORREÇÃO DE ACESSIBILIDADE --- */}
-          {/* Esta label é invisível na tela, mas o leitor de tela vai ler: "Digite a URL do site para auditar" */}
           <label htmlFor="url-input" className="sr-only">
             Digite a URL do site para auditar
           </label>
 
-          <div className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-blue-600 transition-colors">
-            <Search size={22} />
+          <div className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-blue-600 transition-colors duration-300">
+            <Search size={20} strokeWidth={2.5} />
           </div>
           
           <input 
@@ -30,17 +28,25 @@ export const ScanForm = ({ urlInput, setUrlInput, handleScan, scanning }: ScanFo
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
             placeholder="https://exemplo.com.br" 
-            className="w-full h-16 pl-14 pr-6 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border-none text-lg text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+            className="w-full h-14 sm:h-16 pl-14 pr-6 rounded-2xl bg-transparent border-none text-lg font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:ring-0 focus:outline-none transition-all"
             required
+            autoComplete="off"
           />
         </div>
         <button 
           type="submit"
           disabled={scanning}
-          className="h-16 px-10 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-black font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+          className="h-14 sm:h-16 px-8 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-black font-bold text-base sm:text-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 disabled:opacity-80 disabled:cursor-not-allowed shadow-lg shadow-zinc-900/10 dark:shadow-white/5 shrink-0"
         >
-          {scanning ? 'Auditando...' : 'Auditar'} 
-          {!scanning && <ArrowRight size={20} />}
+          {scanning ? (
+            <>
+              <Loader2 size={20} className="animate-spin" /> Analisando...
+            </>
+          ) : (
+            <>
+              Auditar <ArrowRight size={20} strokeWidth={2.5} />
+            </>
+          )}
         </button>
       </form>
     </div>
