@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import axeCore from 'axe-core';
 import type { Browser } from 'puppeteer-core';
 
-// Configuração de tempo limite para Vercel (Hobby: 10s, Pro: 60s+)
+// Configuração crítica para Vercel
 export const maxDuration = 60; 
 export const dynamic = 'force-dynamic';
 
@@ -29,15 +29,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'URL é obrigatória' }, { status: 400 });
     }
 
-    // --- LÓGICA DE SELEÇÃO DE AMBIENTE ---
+    // --- LÓGICA DE AMBIENTE ---
     if (process.env.NODE_ENV === 'production') {
-      // AMBIENTE VERCEL (Produção)
-      // Importamos apenas aqui para não quebrar no seu PC
+      // AMBIENTE VERCEL
       const chromium = require('@sparticuz/chromium-min');
       const puppeteerCore = require('puppeteer-core');
 
+      // IMPORTANTE: A versão do pacote aqui DEVE bater com a URL do executablePath
+      // Estamos usando v131.0.1 em ambos
       browser = await puppeteerCore.launch({
-        args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
+        args: [
+          ...chromium.args, 
+          '--hide-scrollbars', 
+          '--disable-web-security', 
+          '--disable-gpu'
+        ],
         defaultViewport: chromium.defaultViewport,
         executablePath: await chromium.executablePath(
           'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
@@ -47,32 +53,29 @@ export async function POST(req: Request) {
       });
 
     } else {
-      // AMBIENTE LOCAL (Seu PC)
+      // AMBIENTE LOCAL
       const puppeteer = require('puppeteer');
-      
       browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       });
     }
 
-    if (!browser) throw new Error('Falha ao iniciar o motor de navegação.');
+    if (!browser) throw new Error('Falha crítica ao iniciar o navegador.');
     
     const page = await browser.newPage();
 
-    // Configuração de viewport para simular Desktop
+    // Configuração de Viewport e User Agent
     await page.setViewport({ width: 1280, height: 800 });
-    
-    // User Agent para evitar bloqueios simples
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-    // Navegar até a URL (Timeout de 30s para garantir resposta)
+    // Navegação com Timeout de Segurança (30s)
     await page.goto(url, { 
       waitUntil: 'domcontentloaded', 
       timeout: 30000 
     });
 
-    // Injeção de compatibilidade para Axe-Core (Evita erro "module is not defined")
+    // Injeção de compatibilidade (Mock do Node.js)
     await page.evaluate(() => {
       // @ts-ignore
       window.module = { exports: {} };
@@ -119,7 +122,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('ERRO NO SCANNER:', error);
     return NextResponse.json(
-      { error: 'Erro técnico ao analisar o site. Verifique a URL ou tente novamente mais tarde.' }, 
+      { error: 'Erro técnico ao processar. Verifique a URL.' }, 
       { status: 500 }
     );
   } finally {
