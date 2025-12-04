@@ -13,10 +13,19 @@ export const ScanForm = ({ urlInput, setUrlInput, handleScan, scanning }: ScanFo
     <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 p-2 rounded-3xl shadow-2xl transition-all duration-500">
       <form onSubmit={handleScan} className="flex flex-col md:flex-row gap-2">
         <div className="relative flex-grow group">
+          
+          {/* --- CORREÇÃO DE ACESSIBILIDADE --- */}
+          {/* Esta label é invisível na tela, mas o leitor de tela vai ler: "Digite a URL do site para auditar" */}
+          <label htmlFor="url-input" className="sr-only">
+            Digite a URL do site para auditar
+          </label>
+
           <div className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-blue-600 transition-colors">
             <Search size={22} />
           </div>
+          
           <input 
+            id="url-input" 
             type="url" 
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
