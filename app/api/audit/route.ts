@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import axeCore from 'axe-core';
 import type { Browser } from 'puppeteer-core';
 
-// Configuração crítica para Vercel
+// Configuração para Vercel (máximo permitido no plano Hobby é 10s, Pro 60s)
 export const maxDuration = 60; 
 export const dynamic = 'force-dynamic';
 
@@ -31,18 +31,18 @@ export async function POST(req: Request) {
 
     // --- LÓGICA DE AMBIENTE ---
     if (process.env.NODE_ENV === 'production') {
-      // AMBIENTE VERCEL
+      // VERCEL: Usa o Chromium leve v131
       const chromium = require('@sparticuz/chromium-min');
       const puppeteerCore = require('puppeteer-core');
 
-      // IMPORTANTE: A versão do pacote aqui DEVE bater com a URL do executablePath
-      // Estamos usando v131.0.1 em ambos
       browser = await puppeteerCore.launch({
         args: [
           ...chromium.args, 
           '--hide-scrollbars', 
           '--disable-web-security', 
-          '--disable-gpu'
+          '--disable-gpu',     // Essencial para serverless
+          '--no-zygote',       // Economiza memória
+          '--single-process'   // Evita zumbis de processo
         ],
         defaultViewport: chromium.defaultViewport,
         executablePath: await chromium.executablePath(
@@ -53,29 +53,30 @@ export async function POST(req: Request) {
       });
 
     } else {
-      // AMBIENTE LOCAL
+      // LOCAL: Usa o Puppeteer v23 (Chrome v131) instalado no PC
       const puppeteer = require('puppeteer');
+      
       browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       });
     }
 
-    if (!browser) throw new Error('Falha crítica ao iniciar o navegador.');
+    if (!browser) throw new Error('Falha crítica ao iniciar o motor de navegação.');
     
     const page = await browser.newPage();
 
-    // Configuração de Viewport e User Agent
-    await page.setViewport({ width: 1280, height: 800 });
+    // Simula Desktop Real
+    await page.setViewport({ width: 1366, height: 768 });
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-    // Navegação com Timeout de Segurança (30s)
+    // Navegação (30s timeout)
     await page.goto(url, { 
       waitUntil: 'domcontentloaded', 
       timeout: 30000 
     });
 
-    // Injeção de compatibilidade (Mock do Node.js)
+    // Compatibilidade Axe-Core
     await page.evaluate(() => {
       // @ts-ignore
       window.module = { exports: {} };
@@ -85,10 +86,10 @@ export async function POST(req: Request) {
       window.process = { env: {} };
     });
 
-    // Injeta o script de auditoria
+    // Injeta auditoria
     await page.evaluate(axeCore.source);
 
-    // Executa a auditoria
+    // Executa auditoria
     const results = await page.evaluate(async () => {
       // @ts-ignore
       return await axe.run({
@@ -99,7 +100,7 @@ export async function POST(req: Request) {
       });
     });
 
-    // Calcula o score
+    // Calcula Score
     let penalty = 0;
     // @ts-ignore
     results.violations.forEach((v: any) => {

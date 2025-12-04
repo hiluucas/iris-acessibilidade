@@ -1,11 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Isso evita que o Next.js tente "empacotar" o navegador, o que quebraria o deploy
+  // Impede que o build quebre tentando empacotar o navegador
   serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium-min"],
+  
+  // Aumenta limites para evitar timeout em sites pesados
   experimental: {
     serverActions: {
-      // Aumenta o limite para não dar erro em sites grandes
       bodySizeLimit: '2mb',
     },
   },
