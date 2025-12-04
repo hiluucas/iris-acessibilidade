@@ -1,0 +1,33 @@
+{
+  "name": "iris-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@sparticuz/chromium-min": "131.0.1",
+    "axe-core": "^4.11.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.555.0",
+    "next": "16.0.7",
+    "puppeteer-core": "23.11.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "puppeteer": "23.11.1",
+    "@tailwindcss/postcss": "^4",
+    "@types/axe-core": "^2.0.2",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.7",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

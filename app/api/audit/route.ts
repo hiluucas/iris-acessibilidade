@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import axeCore from 'axe-core';
-// Importa APENAS o tipo, não a biblioteca real (para não pesar)
+// Importa APENAS o tipo, não a biblioteca real (para não pesar no build)
 import type { Browser } from 'puppeteer-core';
 
-// Configuração para Vercel Pro (60s) ou Hobby (10s - máximo possível)
+// Configuração para Vercel (limite de tempo)
 export const maxDuration = 60; 
 export const dynamic = 'force-dynamic';
 
@@ -32,53 +32,55 @@ export async function POST(req: Request) {
 
     // --- LÓGICA DE AMBIENTE ---
     if (process.env.NODE_ENV === 'production') {
-      // VERCEL (Nuvem)
+      // VERCEL (Nuvem): Usa Chromium leve + Puppeteer Core
       const chromium = require('@sparticuz/chromium-min');
       const puppeteerCore = require('puppeteer-core');
 
-      // A URL aqui PRECISA ser da versão v131.0.1 para casar com o pacote instalado
+      // A URL aqui deve bater com a versão v131.0.1 instalada
       browser = await puppeteerCore.launch({
         args: [
           ...chromium.args,
           '--hide-scrollbars',
           '--disable-web-security',
           '--disable-gpu',     // Obrigatório para Serverless
-          '--no-zygote',       // Economia de memória
+          '--no-zygote',       // Economiza memória crítica
           '--single-process',  // Evita processos fantasmas
+          '--disable-dev-shm-usage'
         ],
         defaultViewport: chromium.defaultViewport,
         executablePath: await chromium.executablePath(
           'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
         ),
         headless: chromium.headless,
+        ignoreHTTPSErrors: true,
       });
 
     } else {
-      // LOCAL (Seu PC)
+      // LOCAL (Seu PC): Usa Puppeteer completo (que já tem o Chrome)
+      // O require dinâmico evita que a Vercel tente carregar esse pacote pesado
       const puppeteer = require('puppeteer');
       
-      // Usa o Chrome instalado pelo Puppeteer v23
       browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       });
     }
 
-    if (!browser) throw new Error('Falha crítica ao iniciar o navegador.');
+    if (!browser) throw new Error('Falha crítica ao iniciar o motor de navegação.');
     
     const page = await browser.newPage();
 
-    // Disfarce de Usuário (User Agent de Chrome v120 para passar despercebido)
+    // Simula Desktop Real para evitar bloqueios e garantir renderização correta
     await page.setViewport({ width: 1366, height: 768 });
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-    // Navegação (30s timeout para não estourar o limite da Vercel)
+    // Navegação (Timeout de 30s é seguro para a Vercel Hobby)
     await page.goto(url, { 
       waitUntil: 'domcontentloaded', 
       timeout: 30000 
     });
 
-    // Injeção de compatibilidade (Mock do Node.js)
+    // Injeção de compatibilidade para Axe-Core (Corrige erro "module not defined")
     await page.evaluate(() => {
       // @ts-ignore
       window.module = { exports: {} };
