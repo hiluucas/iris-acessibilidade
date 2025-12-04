@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import axeCore from 'axe-core';
-// Importamos apenas os tipos para não quebrar o build
+
+// Definimos tipos para o Browser, mas a importação real é dinâmica
 import type { Browser } from 'puppeteer-core';
 
-export const maxDuration = 60; // Define limite de 60s para a função na Vercel (Pro) ou o máximo permitido
+// Configuração para aumentar o tempo limite na Vercel (Pro pode ir até 300s, Hobby é 10s-60s)
+export const maxDuration = 60; 
+export const dynamic = 'force-dynamic';
 
 export interface AuditResult {
   url: string;
@@ -28,46 +31,47 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'URL é obrigatória' }, { status: 400 });
     }
 
-    // --- LÓGICA HÍBRIDA: LOCAL vs NUVEM ---
+    // --- LÓGICA HÍBRIDA DE AMBIENTE ---
     if (process.env.NODE_ENV === 'production') {
-      // ESTAMOS NA VERCEL (NUVEM)
+      // AMBIENTE DE NUVEM (VERCEL)
       const chromium = require('@sparticuz/chromium-min');
       const puppeteerCore = require('puppeteer-core');
 
       browser = await puppeteerCore.launch({
         args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
         defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath('https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'),
+        executablePath: await chromium.executablePath(
+          'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
+        ),
         headless: chromium.headless,
         ignoreHTTPSErrors: true,
       });
 
     } else {
-      // ESTAMOS NO SEU COMPUTADOR (LOCAL)
+      // AMBIENTE LOCAL (SEU COMPUTADOR)
       const puppeteer = require('puppeteer');
       
       browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        // O puppeteer local já baixa o chrome automaticamente, não precisa de path
       });
     }
 
-    if (!browser) throw new Error('Falha ao iniciar o navegador.');
+    if (!browser) throw new Error('Falha crítica ao iniciar o navegador.');
     
     const page = await browser.newPage();
 
-    // Configurações para parecer um usuário real
+    // Disfarce de Usuário Real (Para evitar bloqueios)
     await page.setViewport({ width: 1280, height: 800 });
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-    // Navega até a URL (Timeout de 30s para garantir resposta rápida)
+    // Navegação Otimizada (30s timeout)
     await page.goto(url, { 
       waitUntil: 'domcontentloaded', 
       timeout: 30000 
     });
 
-    // Injeção do Axe-Core (Correção do erro "module is not defined")
+    // Injeção de compatibilidade para o axe-core
     await page.evaluate(() => {
       // @ts-ignore
       window.module = { exports: {} };
@@ -77,7 +81,7 @@ export async function POST(req: Request) {
       window.process = { env: {} };
     });
 
-    // Injeta a biblioteca de auditoria
+    // Injeta a engine de acessibilidade
     await page.evaluate(axeCore.source);
 
     // Executa a auditoria
@@ -91,7 +95,7 @@ export async function POST(req: Request) {
       });
     });
 
-    // Cálculo do Score
+    // Cálculo de Score (Penalidades)
     let penalty = 0;
     // @ts-ignore
     results.violations.forEach((v: any) => {
@@ -112,9 +116,9 @@ export async function POST(req: Request) {
     return NextResponse.json(auditData);
 
   } catch (error) {
-    console.error('ERRO NO BACKEND:', error);
+    console.error('ERRO NO SCANNER:', error);
     return NextResponse.json(
-      { error: 'Erro técnico ao analisar. Tente novamente ou verifique a URL.' }, 
+      { error: 'Erro técnico ao processar. Verifique se a URL é válida e acessível publicamente.' }, 
       { status: 500 }
     );
   } finally {
