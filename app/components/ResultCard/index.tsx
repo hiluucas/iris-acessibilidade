@@ -1,5 +1,8 @@
 import React from 'react';
-import { Activity, Check, AlertCircle, Zap, Heart, Wrench, BookOpen } from 'lucide-react';
+import { Activity, Check, AlertCircle, Zap, Heart, Wrench, BookOpen, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
+// Importamos a "Célebro" do projeto para não ter dados duplicados
+import { knowledgeBase } from '../../data/knowledge-base';
 
 interface Violation {
   id: string;
@@ -17,41 +20,6 @@ interface ResultCardProps {
   result: AuditResult | null;
   scanning: boolean;
 }
-
-// --- O CÉREBRO DIDÁTICO (TRADUTOR) ---
-// Aqui mapeamos os IDs técnicos do Axe-Core para explicações humanas
-const didacticDictionary: Record<string, { title: string; why: string; fix: string }> = {
-  'color-contrast': {
-    title: 'Contraste de Cores Baixo',
-    why: 'Pessoas com baixa visão, idosos ou quem está usando o celular no sol não conseguem ler seu texto se a cor dele for muito parecida com o fundo.',
-    fix: 'Aumente a diferença entre as cores. Se o fundo é claro, use uma fonte bem escura (e vice-versa).'
-  },
-  'html-has-lang': {
-    title: 'Idioma da Página não Definido',
-    why: 'Leitores de tela (usados por cegos) precisam saber o idioma para usar o sotaque correto. Sem isso, um site em português pode ser lido com sotaque inglês, tornando-se incompreensível.',
-    fix: 'Adicione o atributo lang na tag html. Exemplo: <html lang="pt-BR">'
-  },
-  'image-alt': {
-    title: 'Imagem sem Descrição (Alt)',
-    why: 'Para um usuário cego, uma imagem sem descrição é apenas um buraco silencioso no conteúdo. Ele perde a informação que a imagem transmite.',
-    fix: 'Adicione o atributo alt="descrição do que se vê" em todas as suas tags <img>.'
-  },
-  'link-name': {
-    title: 'Link Vazio ou Sem Contexto',
-    why: 'Links que dizem apenas "Clique aqui" ou ícones sem texto deixam o usuário sem saber para onde será levado.',
-    fix: 'Garanta que todo link tenha um texto descritivo. Se for um ícone, use aria-label="Nome do destino".'
-  },
-  'label': {
-    title: 'Campo de Formulário sem Etiqueta',
-    why: 'Imagine preencher um formulário em branco onde você não sabe o que escrever em cada linha. É assim que um cego se sente se o input não tiver label.',
-    fix: 'Use a tag <label> associada ao input, ou use aria-label no próprio input.'
-  },
-  'button-name': {
-    title: 'Botão sem Texto Legível',
-    why: 'Um botão sem texto (apenas ícone) é invisível para tecnologias assistivas. O usuário não saberá qual ação o botão realiza.',
-    fix: 'Coloque texto dentro do botão ou use aria-label="Ação do botão".'
-  }
-};
 
 export const ResultCard = ({ result, scanning }: ResultCardProps) => {
   if (!result && !scanning) return null;
@@ -92,7 +60,7 @@ export const ResultCard = ({ result, scanning }: ResultCardProps) => {
       <div className="bg-blue-600 text-white p-8 rounded-3xl shadow-xl shadow-blue-600/20 flex flex-col justify-between relative overflow-hidden">
         <div className="relative z-10">
             <div className="p-3 bg-white/20 w-fit rounded-xl backdrop-blur-sm mb-4">
-            <Zap size={28} fill="currentColor" />
+              <Zap size={28} fill="currentColor" />
             </div>
             <div>
             <p className="text-blue-100 text-sm font-medium mb-1">Veredito</p>
@@ -104,11 +72,10 @@ export const ResultCard = ({ result, scanning }: ResultCardProps) => {
             </p>
             </div>
         </div>
-        {/* Decorativo */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 rounded-full blur-3xl opacity-50 translate-x-10 -translate-y-10"></div>
       </div>
 
-      {/* 3. RELATÓRIO CONSULTIVO */}
+      {/* 3. RELATÓRIO CONSULTIVO (CONECTADO À BIBLIOTECA) */}
       {!scanning && result && result.violations.length > 0 && (
         <div className="md:col-span-3 bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-100 dark:border-zinc-800 transition-colors">
           <div className="flex items-center gap-3 mb-8">
@@ -123,13 +90,19 @@ export const ResultCard = ({ result, scanning }: ResultCardProps) => {
 
           <div className="space-y-6">
             {result.violations.map((v, i) => {
-              // Tentamos achar a tradução. Se não existir, usamos o texto original do inglês (fallback)
-              const translation = didacticDictionary[v.id];
+              // AQUI ESTÁ A MÁGICA: Buscamos a explicação direto da sua Biblioteca
+              const doc = knowledgeBase.find(k => k.id === v.id);
               
+              // Fallback: Se não acharmos na biblioteca, usamos o texto do próprio erro
+              const title = doc ? doc.title : v.help;
+              const explanation = doc ? doc.why : v.description;
+              const fix = doc ? doc.fix : 'Consulte a documentação técnica.';
+              const Icon = doc ? doc.icon : AlertCircle;
+
               return (
                 <div key={i} className="group p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-blue-800 transition-all shadow-sm hover:shadow-md">
                   
-                  {/* Cabeçalho do Card de Erro */}
+                  {/* Cabeçalho do Card */}
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-3">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
@@ -138,36 +111,50 @@ export const ResultCard = ({ result, scanning }: ResultCardProps) => {
                         }`}>
                         {v.impact === 'critical' ? 'Crítico' : v.impact === 'serious' ? 'Sério' : 'Moderado'}
                         </span>
-                        <span className="font-mono text-xs text-zinc-400 bg-zinc-200 dark:bg-zinc-800 px-2 py-1 rounded">
-                            {v.id}
-                        </span>
+                        
+                        {/* Se temos documento, mostramos a categoria */}
+                        {doc && (
+                          <span className="font-bold text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                             • {doc.category}
+                          </span>
+                        )}
                     </div>
                   </div>
 
-                  {/* Título do Problema */}
-                  <h4 className="font-bold text-xl text-zinc-800 dark:text-zinc-100 mb-4">
-                    {translation ? translation.title : v.help}
+                  {/* Título com Ícone Dinâmico */}
+                  <h4 className="font-bold text-xl text-zinc-800 dark:text-zinc-100 mb-4 flex items-center gap-2">
+                    <div className="p-1.5 bg-white dark:bg-zinc-800 rounded-lg shadow-sm text-zinc-500">
+                      <Icon size={20} />
+                    </div>
+                    {title}
                   </h4>
 
                   <div className="grid md:grid-cols-2 gap-6">
-                    {/* Coluna 1: Empatia (Por que isso importa?) */}
+                    {/* Coluna 1: Impacto Humano */}
                     <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800">
                         <p className="text-sm font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-2">
                             <Heart size={16} /> Impacto Humano
                         </p>
                         <p className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed">
-                            {translation ? translation.why : v.description}
+                            {explanation}
                         </p>
                     </div>
 
-                    {/* Coluna 2: Ação (Como corrigir?) */}
-                    <div className="bg-zinc-100 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                        <p className="text-sm font-bold text-green-600 dark:text-green-400 mb-2 flex items-center gap-2">
-                            <Wrench size={16} /> Como Corrigir
-                        </p>
-                        <p className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed font-mono">
-                            {translation ? translation.fix : 'Consulte a documentação da WCAG para este ID.'}
-                        </p>
+                    {/* Coluna 2: Como Corrigir */}
+                    <div className="bg-zinc-100 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 flex flex-col justify-between">
+                        <div>
+                          <p className="text-sm font-bold text-green-600 dark:text-green-400 mb-2 flex items-center gap-2">
+                              <Wrench size={16} /> Como Corrigir
+                          </p>
+                          <p className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed font-mono mb-3">
+                              {fix}
+                          </p>
+                        </div>
+                        
+                        {/* Botão para levar à biblioteca (O Pulo do Gato) */}
+                        <Link href="/docs" className="text-xs font-bold text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1 transition-colors self-end">
+                          Ver detalhes na biblioteca <ArrowRight size={12} />
+                        </Link>
                     </div>
                   </div>
 
