@@ -1,11 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Instrui a Vercel a incluir os binários do Chromium corretamente
+  // Isso evita que o Next.js tente "empacotar" o navegador, o que quebraria o deploy
   serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium-min"],
-  // Aumenta limites para evitar timeout em sites lentos
   experimental: {
     serverActions: {
+      // Aumenta o limite para não dar erro em sites grandes
       bodySizeLimit: '2mb',
     },
   },

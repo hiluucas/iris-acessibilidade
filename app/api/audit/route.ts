@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import axeCore from 'axe-core';
-// Importamos apenas os tipos para não quebrar o build
 import type { Browser } from 'puppeteer-core';
 
-// Configurações para Vercel (Tempo máximo de execução)
+// Configuração de tempo limite para Vercel (Hobby: 10s, Pro: 60s+)
 export const maxDuration = 60; 
 export const dynamic = 'force-dynamic';
 
@@ -30,9 +29,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'URL é obrigatória' }, { status: 400 });
     }
 
-    // --- LÓGICA HÍBRIDA: LOCAL vs NUVEM ---
+    // --- LÓGICA DE SELEÇÃO DE AMBIENTE ---
     if (process.env.NODE_ENV === 'production') {
-      // AMBIENTE DE NUVEM (VERCEL)
+      // AMBIENTE VERCEL (Produção)
+      // Importamos apenas aqui para não quebrar no seu PC
       const chromium = require('@sparticuz/chromium-min');
       const puppeteerCore = require('puppeteer-core');
 
@@ -47,8 +47,7 @@ export async function POST(req: Request) {
       });
 
     } else {
-      // AMBIENTE LOCAL (SEU COMPUTADOR)
-      // Usa o puppeteer padrão que já tem o Chrome baixado
+      // AMBIENTE LOCAL (Seu PC)
       const puppeteer = require('puppeteer');
       
       browser = await puppeteer.launch({
@@ -57,21 +56,23 @@ export async function POST(req: Request) {
       });
     }
 
-    if (!browser) throw new Error('Falha crítica ao iniciar o navegador.');
+    if (!browser) throw new Error('Falha ao iniciar o motor de navegação.');
     
     const page = await browser.newPage();
 
-    // Disfarce de Usuário Real (Evita bloqueios de segurança)
+    // Configuração de viewport para simular Desktop
     await page.setViewport({ width: 1280, height: 800 });
+    
+    // User Agent para evitar bloqueios simples
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-    // Navegação (Timeout de 30s)
+    // Navegar até a URL (Timeout de 30s para garantir resposta)
     await page.goto(url, { 
       waitUntil: 'domcontentloaded', 
       timeout: 30000 
     });
 
-    // Injeção de compatibilidade para o axe-core (Corrige erro "module not defined")
+    // Injeção de compatibilidade para Axe-Core (Evita erro "module is not defined")
     await page.evaluate(() => {
       // @ts-ignore
       window.module = { exports: {} };
@@ -81,10 +82,10 @@ export async function POST(req: Request) {
       window.process = { env: {} };
     });
 
-    // Injeta a engine de acessibilidade
+    // Injeta o script de auditoria
     await page.evaluate(axeCore.source);
 
-    // Executa a auditoria (WCAG 2.2 A e AA)
+    // Executa a auditoria
     const results = await page.evaluate(async () => {
       // @ts-ignore
       return await axe.run({
@@ -95,7 +96,7 @@ export async function POST(req: Request) {
       });
     });
 
-    // Cálculo de Score
+    // Calcula o score
     let penalty = 0;
     // @ts-ignore
     results.violations.forEach((v: any) => {
@@ -118,7 +119,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('ERRO NO SCANNER:', error);
     return NextResponse.json(
-      { error: 'Erro técnico ao processar. Verifique se a URL é válida.' }, 
+      { error: 'Erro técnico ao analisar o site. Verifique a URL ou tente novamente mais tarde.' }, 
       { status: 500 }
     );
   } finally {
