@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import axeCore from 'axe-core';
-
-// Definimos tipos para o Browser, mas a importação real é dinâmica
+// Importamos apenas os tipos para não quebrar o build
 import type { Browser } from 'puppeteer-core';
 
-// Configuração para aumentar o tempo limite na Vercel (Pro pode ir até 300s, Hobby é 10s-60s)
+// Configurações para Vercel (Tempo máximo de execução)
 export const maxDuration = 60; 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +30,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'URL é obrigatória' }, { status: 400 });
     }
 
-    // --- LÓGICA HÍBRIDA DE AMBIENTE ---
+    // --- LÓGICA HÍBRIDA: LOCAL vs NUVEM ---
     if (process.env.NODE_ENV === 'production') {
       // AMBIENTE DE NUVEM (VERCEL)
       const chromium = require('@sparticuz/chromium-min');
@@ -49,6 +48,7 @@ export async function POST(req: Request) {
 
     } else {
       // AMBIENTE LOCAL (SEU COMPUTADOR)
+      // Usa o puppeteer padrão que já tem o Chrome baixado
       const puppeteer = require('puppeteer');
       
       browser = await puppeteer.launch({
@@ -61,17 +61,17 @@ export async function POST(req: Request) {
     
     const page = await browser.newPage();
 
-    // Disfarce de Usuário Real (Para evitar bloqueios)
+    // Disfarce de Usuário Real (Evita bloqueios de segurança)
     await page.setViewport({ width: 1280, height: 800 });
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-    // Navegação Otimizada (30s timeout)
+    // Navegação (Timeout de 30s)
     await page.goto(url, { 
       waitUntil: 'domcontentloaded', 
       timeout: 30000 
     });
 
-    // Injeção de compatibilidade para o axe-core
+    // Injeção de compatibilidade para o axe-core (Corrige erro "module not defined")
     await page.evaluate(() => {
       // @ts-ignore
       window.module = { exports: {} };
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
     // Injeta a engine de acessibilidade
     await page.evaluate(axeCore.source);
 
-    // Executa a auditoria
+    // Executa a auditoria (WCAG 2.2 A e AA)
     const results = await page.evaluate(async () => {
       // @ts-ignore
       return await axe.run({
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
       });
     });
 
-    // Cálculo de Score (Penalidades)
+    // Cálculo de Score
     let penalty = 0;
     // @ts-ignore
     results.violations.forEach((v: any) => {
@@ -118,7 +118,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('ERRO NO SCANNER:', error);
     return NextResponse.json(
-      { error: 'Erro técnico ao processar. Verifique se a URL é válida e acessível publicamente.' }, 
+      { error: 'Erro técnico ao processar. Verifique se a URL é válida.' }, 
       { status: 500 }
     );
   } finally {
