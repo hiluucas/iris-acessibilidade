@@ -1,15 +1,9 @@
 import { NextResponse } from 'next/server';
 import axeCore from 'axe-core';
-// Importações condicionais para lidar com Nuvem vs Local
-import puppeteerCore from 'puppeteer-core';
-import chromium from '@sparticuz/chromium-min';
+// Importamos apenas os tipos para não quebrar o build
+import type { Browser } from 'puppeteer-core';
 
-// O Puppeteer padrão (local) é importado dinamicamente para não quebrar na Vercel
-const localExecutablePath = process.platform === 'win32' 
-  ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' // Caminho comum no Windows
-  : process.platform === 'linux'
-  ? '/usr/bin/google-chrome'
-  : '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+export const maxDuration = 60; // Define limite de 60s para a função na Vercel (Pro) ou o máximo permitido
 
 export interface AuditResult {
   url: string;
@@ -25,7 +19,8 @@ export interface AuditResult {
 }
 
 export async function POST(req: Request) {
-  let browser;
+  let browser: Browser | null = null;
+
   try {
     const { url } = await req.json();
 
@@ -33,41 +28,46 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'URL é obrigatória' }, { status: 400 });
     }
 
-    // --- LÓGICA DE AMBIENTE (A Mágica Acontece Aqui) ---
-    const isProduction = process.env.NODE_ENV === 'production';
+    // --- LÓGICA HÍBRIDA: LOCAL vs NUVEM ---
+    if (process.env.NODE_ENV === 'production') {
+      // ESTAMOS NA VERCEL (NUVEM)
+      const chromium = require('@sparticuz/chromium-min');
+      const puppeteerCore = require('puppeteer-core');
 
-    if (isProduction) {
-      // CONFIGURAÇÃO DE NUVEM (VERCEL)
-      // Carrega o Chromium leve necessário para Serverless
       browser = await puppeteerCore.launch({
         args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
         defaultViewport: chromium.defaultViewport,
         executablePath: await chromium.executablePath('https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'),
         headless: chromium.headless,
+        ignoreHTTPSErrors: true,
       });
+
     } else {
-      // CONFIGURAÇÃO LOCAL (SEU PC)
-      // Tenta usar o puppeteer normal ou o puppeteer-core apontando para seu Chrome
-      const puppeteer = await import('puppeteer').then(mod => mod.default);
+      // ESTAMOS NO SEU COMPUTADOR (LOCAL)
+      const puppeteer = require('puppeteer');
+      
       browser = await puppeteer.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        // O puppeteer local já baixa o chrome automaticamente, não precisa de path
       });
     }
+
+    if (!browser) throw new Error('Falha ao iniciar o navegador.');
     
     const page = await browser.newPage();
 
-    // Configurações de Viewport e User Agent
+    // Configurações para parecer um usuário real
     await page.setViewport({ width: 1280, height: 800 });
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-    // Navegação Robusta
+    // Navega até a URL (Timeout de 30s para garantir resposta rápida)
     await page.goto(url, { 
       waitUntil: 'domcontentloaded', 
-      timeout: 60000 
+      timeout: 30000 
     });
 
-    // Injeção do Axe-Core (Correção do module is not defined)
+    // Injeção do Axe-Core (Correção do erro "module is not defined")
     await page.evaluate(() => {
       // @ts-ignore
       window.module = { exports: {} };
@@ -77,9 +77,10 @@ export async function POST(req: Request) {
       window.process = { env: {} };
     });
 
+    // Injeta a biblioteca de auditoria
     await page.evaluate(axeCore.source);
 
-    // Execução da Auditoria
+    // Executa a auditoria
     const results = await page.evaluate(async () => {
       // @ts-ignore
       return await axe.run({
@@ -113,7 +114,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('ERRO NO BACKEND:', error);
     return NextResponse.json(
-      { error: 'Falha técnica ao analisar. Em produção, verifique os logs da Vercel.' }, 
+      { error: 'Erro técnico ao analisar. Tente novamente ou verifique a URL.' }, 
       { status: 500 }
     );
   } finally {
