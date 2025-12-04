@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, ArrowDown } from 'lucide-react';
+import { AlertTriangle, Sparkles } from 'lucide-react';
 import { Header } from './components/Header';
 import { ScanForm } from './components/ScanForm';
 import { ResultCard } from './components/ResultCard';
@@ -79,29 +79,41 @@ const IrisReimagined = () => {
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-black transition-colors duration-500">
       
-      <Header isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
+      {/* Header Container com Padding */}
+      <div className="w-full max-w-7xl mx-auto px-6 md:px-8 pt-8">
+        <Header isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
+      </div>
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-6 md:px-8 flex flex-col justify-center py-12">
+      {/* Main Centralizado com MUITO Respiro */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-6 md:px-8 flex flex-col justify-center items-center py-20 md:py-32">
         
-        {/* Hero Section - Limpo e Tipográfico */}
-        <div className={`transition-all duration-700 ease-in-out ${result ? 'mt-0' : 'mt-12 md:mt-20'}`}>
-          <div className="max-w-4xl mx-auto text-center space-y-8">
-            <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-zinc-900 dark:text-white leading-[0.9]">
-              Torne a web <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-b from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600">
-                acessível.
-              </span>
+        {/* Bloco Hero + Input */}
+        <div className={`transition-all duration-700 ease-out w-full max-w-4xl flex flex-col items-center gap-12 ${result ? 'mt-0' : 'mt-[-10vh]'}`}>
+          
+          {/* Títulos */}
+          <div className="text-center space-y-6">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm mb-4 animate-in fade-in zoom-in duration-500">
+              <Sparkles size={14} className="text-blue-500 fill-blue-500/20" />
+              <span className="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Auditoria WCAG 2.2</span>
+            </div>
+            
+            <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-zinc-900 dark:text-white leading-[0.95] text-balance">
+              Acessibilidade <br className="hidden md:block" />
+              <span className="text-zinc-400 dark:text-zinc-600">Descomplicada.</span>
             </h1>
             
             {!result && (
               <p className="text-xl md:text-2xl text-zinc-500 dark:text-zinc-400 font-medium max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-                A ferramenta de referência para auditar, aprender e corrigir interfaces digitais.
+                Audite, aprenda e corrija. A ferramenta definitiva para designers e desenvolvedores inclusivos.
               </p>
             )}
           </div>
 
-          {/* Scanner Area */}
-          <div className="mt-12 md:mt-16 max-w-2xl mx-auto w-full relative z-10">
+          {/* Scanner (Input) */}
+          <div className="w-full max-w-2xl relative group z-10">
+            {/* Sombra colorida sutil atrás */}
+            <div className="absolute -inset-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-[2rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+            
             <ScanForm 
               urlInput={urlInput} 
               setUrlInput={setUrlInput} 
@@ -109,18 +121,19 @@ const IrisReimagined = () => {
               scanning={scanning} 
             />
             
-            {/* Error Feedback */}
+            {/* Mensagem de Erro */}
             {error && (
-              <div className="mt-4 p-4 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900 text-red-600 dark:text-red-400 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold animate-in fade-in slide-in-from-top-2">
-                <AlertTriangle size={16} /> 
-                <span>{error}</span>
+              <div className="mt-6 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 rounded-xl flex items-center justify-center gap-3 shadow-sm animate-in slide-in-from-top-2">
+                <AlertTriangle size={18} /> 
+                <span className="text-sm font-semibold">{error}</span>
               </div>
             )}
           </div>
+
         </div>
 
-        {/* Results Area */}
-        <div className="w-full mt-12 md:mt-20 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+        {/* Resultados (Separados visualmente) */}
+        <div className="w-full mt-24 animate-in fade-in slide-in-from-bottom-12 duration-1000">
           <ResultCard result={result} scanning={scanning} />
         </div>
 

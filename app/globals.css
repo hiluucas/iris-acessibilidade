@@ -8,7 +8,7 @@
 }
 
 .dark {
-  --background: #000000; /* Preto absoluto para contraste máximo e elegância */
+  --background: #020202; /* Preto quase absoluto para OLED */
   --foreground: #ededed;
 }
 
@@ -29,39 +29,23 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), sans-serif;
-  transition: background-color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), color 0.4s ease;
   overflow-x: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Seleção de texto premium */
-::selection {
-  background-color: #2563eb;
-  color: white;
-}
-
-/* Scrollbar minimalista */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #d4d4d8;
-  border-radius: 4px;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
-}
-
-/* Utilitário para esconder scrollbar mas manter funcionalidade */
+/* Utilitários de Scroll Oculto (mas funcional) */
 .scrollbar-hide::-webkit-scrollbar {
     display: none;
 }
 .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
+}
+
+/* Seleção de texto elegante */
+::selection {
+  background-color: #3b82f6; /* Blue-500 */
+  color: white;
 }

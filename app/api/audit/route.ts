@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
-import puppeteer from 'puppeteer';
 import axeCore from 'axe-core';
+// Importações condicionais para lidar com Nuvem vs Local
+import puppeteerCore from 'puppeteer-core';
+import chromium from '@sparticuz/chromium-min';
+
+// O Puppeteer padrão (local) é importado dinamicamente para não quebrar na Vercel
+const localExecutablePath = process.platform === 'win32' 
+  ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' // Caminho comum no Windows
+  : process.platform === 'linux'
+  ? '/usr/bin/google-chrome'
+  : '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 export interface AuditResult {
   url: string;
@@ -24,30 +33,41 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'URL é obrigatória' }, { status: 400 });
     }
 
-    // 1. Inicia o navegador (Headless)
-    browser = await puppeteer.launch({ 
-      headless: true,
-      args: [
-        '--no-sandbox', 
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-      ] 
-    });
+    // --- LÓGICA DE AMBIENTE (A Mágica Acontece Aqui) ---
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (isProduction) {
+      // CONFIGURAÇÃO DE NUVEM (VERCEL)
+      // Carrega o Chromium leve necessário para Serverless
+      browser = await puppeteerCore.launch({
+        args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath('https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'),
+        headless: chromium.headless,
+      });
+    } else {
+      // CONFIGURAÇÃO LOCAL (SEU PC)
+      // Tenta usar o puppeteer normal ou o puppeteer-core apontando para seu Chrome
+      const puppeteer = await import('puppeteer').then(mod => mod.default);
+      browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+    }
     
     const page = await browser.newPage();
 
-    // 2. Define tamanho de tela real e User Agent (Disfarce para não ser bloqueado)
+    // Configurações de Viewport e User Agent
     await page.setViewport({ width: 1280, height: 800 });
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-    // 3. Navega até a URL (Timeout aumentado para 60s)
+    // Navegação Robusta
     await page.goto(url, { 
       waitUntil: 'domcontentloaded', 
       timeout: 60000 
     });
 
-    // 4. --- A CORREÇÃO DO ERRO "MODULE IS NOT DEFINED" ---
-    // Injetamos variáveis falsas para o axe-core achar que está num ambiente compatível
+    // Injeção do Axe-Core (Correção do module is not defined)
     await page.evaluate(() => {
       // @ts-ignore
       window.module = { exports: {} };
@@ -57,10 +77,9 @@ export async function POST(req: Request) {
       window.process = { env: {} };
     });
 
-    // 5. Injeta o axe-core
     await page.evaluate(axeCore.source);
 
-    // 6. Executa a auditoria
+    // Execução da Auditoria
     const results = await page.evaluate(async () => {
       // @ts-ignore
       return await axe.run({
@@ -71,7 +90,7 @@ export async function POST(req: Request) {
       });
     });
 
-    // 7. Calcula o Score
+    // Cálculo do Score
     let penalty = 0;
     // @ts-ignore
     results.violations.forEach((v: any) => {
@@ -94,7 +113,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('ERRO NO BACKEND:', error);
     return NextResponse.json(
-      { error: 'Falha técnica ao analisar. Tente outro site ou verifique o terminal.' }, 
+      { error: 'Falha técnica ao analisar. Em produção, verifique os logs da Vercel.' }, 
       { status: 500 }
     );
   } finally {
