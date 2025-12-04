@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
 import axeCore from 'axe-core';
 
-// Definindo a interface da resposta para Type Safety
 export interface AuditResult {
   url: string;
   timestamp: string;
@@ -17,6 +16,7 @@ export interface AuditResult {
 }
 
 export async function POST(req: Request) {
+  let browser;
   try {
     const { url } = await req.json();
 
@@ -24,18 +24,43 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'URL é obrigatória' }, { status: 400 });
     }
 
-    // 1. Inicia o navegador invisível (Headless Chrome)
-    const browser = await puppeteer.launch({ headless: true });
+    // 1. Inicia o navegador (Headless)
+    browser = await puppeteer.launch({ 
+      headless: true,
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+      ] 
+    });
+    
     const page = await browser.newPage();
 
-    // 2. Navega até a URL alvo
-    await page.goto(url, { waitUntil: 'networkidle0' });
+    // 2. Define tamanho de tela real e User Agent (Disfarce para não ser bloqueado)
+    await page.setViewport({ width: 1280, height: 800 });
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-    // 3. Injeta o axe-core na página
-    // Isso permite que o script de auditoria rode "dentro" do site visitado
+    // 3. Navega até a URL (Timeout aumentado para 60s)
+    await page.goto(url, { 
+      waitUntil: 'domcontentloaded', 
+      timeout: 60000 
+    });
+
+    // 4. --- A CORREÇÃO DO ERRO "MODULE IS NOT DEFINED" ---
+    // Injetamos variáveis falsas para o axe-core achar que está num ambiente compatível
+    await page.evaluate(() => {
+      // @ts-ignore
+      window.module = { exports: {} };
+      // @ts-ignore
+      window.exports = {};
+      // @ts-ignore
+      window.process = { env: {} };
+    });
+
+    // 5. Injeta o axe-core
     await page.evaluate(axeCore.source);
 
-    // 4. Executa a análise WCAG 2.2 (níveis A e AA)
+    // 6. Executa a auditoria
     const results = await page.evaluate(async () => {
       // @ts-ignore
       return await axe.run({
@@ -46,11 +71,9 @@ export async function POST(req: Request) {
       });
     });
 
-    await browser.close();
-
-    // 5. Calcula um "Iris Score" simplificado (100 - penalidades)
-    // Cada violação crítica tira mais pontos
+    // 7. Calcula o Score
     let penalty = 0;
+    // @ts-ignore
     results.violations.forEach((v: any) => {
       if (v.impact === 'critical') penalty += 5;
       if (v.impact === 'serious') penalty += 3;
@@ -58,10 +81,10 @@ export async function POST(req: Request) {
     });
     const score = Math.max(0, 100 - penalty);
 
-    // 6. Retorna o JSON limpo
     const auditData: AuditResult = {
       url,
       timestamp: new Date().toISOString(),
+      // @ts-ignore
       violations: results.violations,
       score,
     };
@@ -69,10 +92,14 @@ export async function POST(req: Request) {
     return NextResponse.json(auditData);
 
   } catch (error) {
-    console.error('Erro na auditoria:', error);
+    console.error('ERRO NO BACKEND:', error);
     return NextResponse.json(
-      { error: 'Falha ao analisar a URL. Verifique se o endereço está correto.' }, 
+      { error: 'Falha técnica ao analisar. Tente outro site ou verifique o terminal.' }, 
       { status: 500 }
     );
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
   }
 }
