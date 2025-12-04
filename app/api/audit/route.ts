@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import axeCore from 'axe-core';
+// Importa APENAS o tipo, não a biblioteca real (para não pesar)
 import type { Browser } from 'puppeteer-core';
 
-// Configuração para Vercel (máximo permitido no plano Hobby é 10s, Pro 60s)
+// Configuração para Vercel Pro (60s) ou Hobby (10s - máximo possível)
 export const maxDuration = 60; 
 export const dynamic = 'force-dynamic';
 
@@ -31,52 +32,53 @@ export async function POST(req: Request) {
 
     // --- LÓGICA DE AMBIENTE ---
     if (process.env.NODE_ENV === 'production') {
-      // VERCEL: Usa o Chromium leve v131
+      // VERCEL (Nuvem)
       const chromium = require('@sparticuz/chromium-min');
       const puppeteerCore = require('puppeteer-core');
 
+      // A URL aqui PRECISA ser da versão v131.0.1 para casar com o pacote instalado
       browser = await puppeteerCore.launch({
         args: [
-          ...chromium.args, 
-          '--hide-scrollbars', 
-          '--disable-web-security', 
-          '--disable-gpu',     // Essencial para serverless
-          '--no-zygote',       // Economiza memória
-          '--single-process'   // Evita zumbis de processo
+          ...chromium.args,
+          '--hide-scrollbars',
+          '--disable-web-security',
+          '--disable-gpu',     // Obrigatório para Serverless
+          '--no-zygote',       // Economia de memória
+          '--single-process',  // Evita processos fantasmas
         ],
         defaultViewport: chromium.defaultViewport,
         executablePath: await chromium.executablePath(
           'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
         ),
         headless: chromium.headless,
-        ignoreHTTPSErrors: true,
       });
 
     } else {
-      // LOCAL: Usa o Puppeteer v23 (Chrome v131) instalado no PC
+      // LOCAL (Seu PC)
       const puppeteer = require('puppeteer');
       
+      // Usa o Chrome instalado pelo Puppeteer v23
       browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       });
     }
 
-    if (!browser) throw new Error('Falha crítica ao iniciar o motor de navegação.');
+    if (!browser) throw new Error('Falha crítica ao iniciar o navegador.');
     
     const page = await browser.newPage();
 
-    // Simula Desktop Real
+    // Disfarce de Usuário (User Agent de Chrome v120 para passar despercebido)
     await page.setViewport({ width: 1366, height: 768 });
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-    // Navegação (30s timeout)
+    // Navegação (30s timeout para não estourar o limite da Vercel)
     await page.goto(url, { 
       waitUntil: 'domcontentloaded', 
       timeout: 30000 
     });
 
-    // Compatibilidade Axe-Core
+    // Injeção de compatibilidade (Mock do Node.js)
     await page.evaluate(() => {
       // @ts-ignore
       window.module = { exports: {} };
@@ -86,10 +88,10 @@ export async function POST(req: Request) {
       window.process = { env: {} };
     });
 
-    // Injeta auditoria
+    // Injeta a engine de auditoria
     await page.evaluate(axeCore.source);
 
-    // Executa auditoria
+    // Executa a auditoria
     const results = await page.evaluate(async () => {
       // @ts-ignore
       return await axe.run({
@@ -100,7 +102,7 @@ export async function POST(req: Request) {
       });
     });
 
-    // Calcula Score
+    // Calcula o score
     let penalty = 0;
     // @ts-ignore
     results.violations.forEach((v: any) => {
@@ -123,7 +125,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('ERRO NO SCANNER:', error);
     return NextResponse.json(
-      { error: 'Erro técnico ao processar. Verifique a URL.' }, 
+      { error: 'Erro técnico ao processar. Verifique se a URL é válida.' }, 
       { status: 500 }
     );
   } finally {

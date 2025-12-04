@@ -1,10 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Impede que o build quebre tentando empacotar o navegador
+  // CRÍTICO: Impede que o Next.js tente processar o Puppeteer no build
   serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium-min"],
   
-  // Aumenta limites para evitar timeout em sites pesados
+  // Aumenta o limite de corpo da requisição
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',
